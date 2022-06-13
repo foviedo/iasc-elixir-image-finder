@@ -9,24 +9,21 @@ defmodule ImageFinder.Worker do
     {:ok, %{}}
   end
 
-  def handle_call({:fetch, source_file, target_directory}, _from, state) do
+  def handle_cast({:fetch, source_file, target_directory}, state) do
     content = File.read! source_file
     regexp = ~r/http(s?)\:.*?\.(png|jpg|gif)/
     Regex.scan(regexp, content)
       |> Enum.map(&List.first/1)
       |> Enum.map(&(fetch_link &1, target_directory))
-    {:reply, :ok, state}
+    {:noreply, state}
   end
 
   def fetch_link(link, target_directory) do
-    HTTPotion.get(link).body  |> save(target_directory)
+    IO.puts "estoy en Worker, link: #{link}"
+    #GenServer.cast(ImageFinder.HttpFetcher, {:get, link, target_directory})
+    ImageFinder.DynamicHttpSupervisor.start_child(link,{link,target_directory}) #TODO: no estaría funcionando esta llamada
+    # crear un fetcher
+    # a ese fetcher enviarle que fetchee
   end
 
-  def digest(body) do
-    :crypto.hash(:md5 , body) |> Base.encode16()
-  end
-
-  def save(body, directory) do
-    File.write! "#{directory}/#{digest(body)}", body
-  end
 end
